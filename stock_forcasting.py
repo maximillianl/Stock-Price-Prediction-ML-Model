@@ -244,13 +244,57 @@ def price_prediction_ARIMA(df, period):
     # pacf_res = plot_pacf(residuals)
     # plt.show()
 
+        auto_arima = pm.auto_arima(history, stepwise=False, seasonal=False, trace = True)
+    auto_arima.fit(history)
+    forecast_test = auto_arima.predict(n_periods=30)
 
-    forecast_test = model_fit.forecast(len(test))
+    forecast.extend(forecast_test)
+    history.extend(forecast_test)
+
+
+
+
+
+    # # recursive arima forcast
+    # for i in range(len(test)):
+    #     print("TEST_____________________", i)
+
+    #     # #fit and determine model parameters
+    #     # model = ARIMA(history, order=(3,1,3))
+    #     # model_fit = model.fit()
+
+    #     # auto fit arima
+    #     auto_arima = pm.auto_arima(history, stepwise=False, seasonal=False, trace = True)
+    #     auto_arima.fit(history)
+
+    #     #predict 1 step ahead
+    #     forecast_test = auto_arima.predict(n_periods=1)[0]
+
+    #     #forcast 1 step ahead
+    #     # forecast_test = auto_arima.forecast(steps=1)[0]
+    #     forecast.append(forecast_test)
+
+    #     print(forecast_test)
+
+        
+    #     history.append(forecast_test)
+       
+
+    print(len(close), len(train), len(forecast))
+
+
+
+
+    
 
     #[None]*len(train) creates a list of None values for all training rows + appends values after training set ends
     result_df = pd.DataFrame({'Close': close,
-                             'model': [None]*len(train) + list(forecast_test)})
+                             'model': [None] * len(train) + forecast})
+    
 
+
+    print(train)
+    print(forecast)
     result_df.plot(title='Actual vs Predicted Price')
     plt.show()
 
