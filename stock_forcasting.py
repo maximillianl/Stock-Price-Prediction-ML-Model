@@ -2,6 +2,7 @@
 # In-progress model for stock price prediction using ARIMA + linear regression
 # Code includes test models, debug prints, and data exploration
 
+
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -11,6 +12,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from statsmodels.tsa.arima.model import ARIMA
+import pmdarima as pm
 
 #test
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
@@ -244,7 +246,17 @@ def price_prediction_ARIMA(df, period):
     # pacf_res = plot_pacf(residuals)
     # plt.show()
 
-        auto_arima = pm.auto_arima(history, stepwise=False, seasonal=False, trace = True)
+
+    history = list(train)
+    forecast = []
+
+    # # auto fit arima
+    # auto_arima = pm.auto_arima(train, stepwise=False, seasonal=False, trace = True)
+    # auto_arima
+    # print(auto_arima)
+    # plt.show()
+
+    auto_arima = pm.auto_arima(history, stepwise=False, seasonal=False, trace = True)
     auto_arima.fit(history)
     forecast_test = auto_arima.predict(n_periods=30)
 
