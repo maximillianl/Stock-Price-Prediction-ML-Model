@@ -327,3 +327,48 @@ ATR(stock,14)
 price_prediction_ARIMA(stock,5)
 
 # price_prediction_LR(stock,5)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#v2
+
+# normalizes list of ticker symbols (replace dots with dashes, remove extra spaces, nan, caps, etc)
+
+# may need to deal with duplicates later
+def normalize_list(df):
+    
+    #check ticker for pd.isna(x) or '-' or ''
+    #check name for excluded words excluded_words = ["WARRANT", "CVR", "ESCROW", "RIGHT", "UNIT"]
+    #ticker = str(ticker).replace('.', '-').strip().upper()
+
+    for index, row in df.iterrows():
+            
+        ticker = row['Ticker']
+        name = row.get('Name')
+        excluded_words = ["WARRANT", "CVR", "ESCROW", "RIGHT", "UNIT"]
+        if pd.isna(ticker) or str(ticker).strip() == '-' or str(ticker).strip() == '':
+            normalized_ticker = None
+
+        # check if any word is in name, for all words in excluded_words, then true
+        elif any(word in str(name).upper() for word in excluded_words):
+            normalized_ticker = None
+        else:
+            normalized_ticker = str(ticker)
+            normalized_ticker = normalized_ticker.replace('.', '-')
+            normalized_ticker = normalized_ticker.strip()
+            normalized_ticker = normalized_ticker.upper()
+
+        df.at[index, 'Ticker'] = normalized_ticker
+    df = df.dropna(subset=['Ticker']).drop_duplicates(subset=['Ticker']).reset_index(drop=True)
+    return df

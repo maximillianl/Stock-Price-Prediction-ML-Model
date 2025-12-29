@@ -1,4 +1,4 @@
-# get stocks to be used to learn and test models, given to data.py to fetch and cache data of listed stocks
+# get stocks to be given to data.py to fetch and cache data of listed stocks
 # adds stock names and ticker symbols into test_subjects.csv
 
 import pandas as pd
@@ -27,41 +27,83 @@ def get_snp500_stocks_api():
         data = response.json()
         df = pd.DataFrame(data)
         return df
-    
-# gets list of snp500 stocks (~top 500 biggest)
+    else:
+        print("Error:", response.status_code, response.text)
+        return None
+
+
+# reads ishares etf holdings csv from url, skips header/footer rows
+def read_ishares_csv(url):
+    df = pd.read_csv(url, skiprows=9, skipfooter=10, engine='python')
+    return df
+
+
+# gets index lists from ishares etf holdings csvs
+
+# IVV - s&p 500
 def get_snp500_stocks():
-    #s&p 500 stock list using csv of IVV (ishares snp 500 etf) holdings
-    df = pd.read_csv("https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf/1467271812596.ajax?fileType=csv&fileName=IVV_holdings&dataType=fund", skiprows=9, skipfooter=10, engine='python')
+    df = read_ishares_csv("https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf/1467271812596.ajax?fileType=csv&fileName=IVV_holdings&dataType=fund")
     return df
 
-# gets list of russell 1000 stocks (~top 1000 biggest)
+# IWB - russell 1000 (~top 1000 biggest)
 def get_russell1000_stocks():
-    #russell 1000 stock list using csv of IWB (ishares russell 1000 etf) holdings
-    df = pd.read_csv("https://www.ishares.com/us/products/239707/ishares-russell-1000-etf/1467271812596.ajax?fileType=csv&fileName=IWB_holdings&dataType=fund", skiprows=9, skipfooter=10, engine='python')
+    df = read_ishares_csv("https://www.ishares.com/us/products/239707/ishares-russell-1000-etf/1467271812596.ajax?fileType=csv&fileName=IWB_holdings&dataType=fund")
     return df
 
 
-# gets list of russell 2000 stocks (~top 2000 smallest)
+# IWM - russell 2000 (~smallest 2000)
 def get_russell2000_stocks():
-    #russell 2000 stock list using csv of IWM (ishares russell 2000 etf) holdings
-    df = pd.read_csv("https://www.ishares.com/us/products/239710/ishares-russell-2000-etf/1467271812596.ajax?fileType=csv&fileName=IWM_holdings&dataType=fund", skiprows=9, skipfooter=10, engine='python')
+    df = read_ishares_csv("https://www.ishares.com/us/products/239710/ishares-russell-2000-etf/1467271812596.ajax?fileType=csv&fileName=IWM_holdings&dataType=fund")
     return df
 
-# gets list of russell 3000 stocks (~top 3000 biggest + smallest)
+# IWV - russell 3000 (~top 3000 stocks)
 def get_russell3000_stocks():
-    #russell 3000 stock list using csv of IWV (ishares russell 3000 etf) holdings
-    df = pd.read_csv("https://www.ishares.com/us/products/239714/ishares-russell-3000-etf/1467271812596.ajax?fileType=csv&fileName=IWV_holdings&dataType=fund", skiprows=9, skipfooter=10, engine='python')
+    df = read_ishares_csv("https://www.ishares.com/us/products/239714/ishares-russell-3000-etf/1467271812596.ajax?fileType=csv&fileName=IWV_holdings&dataType=fund")
     return df
 
 
-# normalizes ticker symbols (some have dots, dashes, etc)
-def normalize_ticker(ticker):
-    pass
+# normalizes list of ticker symbols (replace dots with dashes, remove extra spaces, nan, caps, etc)
+
+# may need to deal with duplicates later
+def normalize_list(df):
+    
+    #check ticker for pd.isna(x) or '-' or ''
+    #check name for excluded words excluded_words = ["WARRANT", "CVR", "ESCROW", "RIGHT", "UNIT"]
+    #ticker = str(ticker).replace('.', '-').strip().upper()
+
+    ticker = df['Ticker']
+
+    ticker_na = (ticker.isna())
+    ticker = ticker.str.upper().str.strip().str.replace('.', '-', regex=False)
+    ticker_mask = ticker_na | (ticker == '-') | (ticker == '')
+
+    df['Ticker'] = ticker
+    df = df[~ticker_mask].reset_index(drop=True)
 
 
-# merges two stock lists, removes duplicates, saves to test_subjects.csv
-def merge_stock_lists(list1, list2):
-    pass
+    excluded_words = "WARRANT|CVR|ESCROW|RIGHT|UNIT"
+    name_mask = df['Name'].fillna("").str.contains(excluded_words, case = False)
+    df = df[~name_mask].reset_index(drop=True)
 
+    exchange_mask = df['Exchange'].fillna("").str.contains("NO MARKET", case = False)
+    df = df[~exchange_mask].reset_index(drop=True)
+    
+    sector_mask = df['Sector'].fillna("").str.contains("Cash and/or Derivatives", case = False)
+    df = df[~sector_mask].reset_index(drop=True)
+
+    df = df.drop_duplicates(subset=['Ticker']).reset_index(drop=True)
+    return df
+    
+
+
+# merges two stock lists, removes duplicates
+def merge_stock_lists(*lists):
+    merged_df = pd.concat(lists).drop_duplicates(subset=['Ticker']).reset_index(drop=True)
+    return merged_df
+
+
+# saves dataframe to csv
+def list_to_csv(df, filename):
+    df.to_csv(filename, index=False)
 
     
