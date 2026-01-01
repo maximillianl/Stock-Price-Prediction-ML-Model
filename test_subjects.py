@@ -81,16 +81,20 @@ def normalize_list(df):
     df = df[~ticker_mask].reset_index(drop=True)
 
 
+    # removes stocks with excluded words in name
     excluded_words = "WARRANT|CVR|ESCROW|RIGHT|UNIT"
     name_mask = df['Name'].fillna("").str.contains(excluded_words, case = False)
     df = df[~name_mask].reset_index(drop=True)
 
+    # removes stocks with no market exchange
     exchange_mask = df['Exchange'].fillna("").str.contains("NO MARKET", case = False)
     df = df[~exchange_mask].reset_index(drop=True)
     
+    # removes cash and derivatives (from etf holdings)
     sector_mask = df['Sector'].fillna("").str.contains("Cash and/or Derivatives", case = False)
     df = df[~sector_mask].reset_index(drop=True)
 
+    # removes duplicates
     df = df.drop_duplicates(subset=['Ticker']).reset_index(drop=True)
     return df
     
