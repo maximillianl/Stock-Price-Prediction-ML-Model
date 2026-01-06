@@ -97,7 +97,7 @@ def normalize_list(df):
     # removes duplicates
     df = df.drop_duplicates(subset=['Ticker']).reset_index(drop=True)
     return df
-    
+
 
 
 # merges two stock lists, removes duplicates

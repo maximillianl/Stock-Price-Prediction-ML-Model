@@ -372,3 +372,134 @@ def normalize_list(df):
         df.at[index, 'Ticker'] = normalized_ticker
     df = df.dropna(subset=['Ticker']).drop_duplicates(subset=['Ticker']).reset_index(drop=True)
     return df
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import time
+import pandas as pd
+import yfinance as yf
+
+def validate_tickers_yfinance(tickers, batch_size=80, period="5d", pause_s=1.0, max_retries=3):
+    """
+    Returns (valid, invalid, errors) where:
+      - valid: list of tickers that returned any data
+      - invalid: list of tickers that returned no columns / all-NaN
+      - errors: dict[ticker] = error message for batches that failed repeatedly
+    """
+    tickers = [t for t in tickers if isinstance(t, str) and t.strip()]
+    valid, invalid = set(), set()
+    errors = {}
+
+    # chunk tickers
+    for i in range(0, len(tickers), batch_size):
+        chunk = tickers[i:i+batch_size]
+
+        # retry loop (helps with occasional hiccups / rate limiting)
+        for attempt in range(max_retries):
+            try:
+                df = yf.download(
+                    tickers=" ".join(chunk),
+                    period=period,
+                    group_by="ticker",
+                    auto_adjust=False,
+                    threads=False,
+                    progress=False,
+                )
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    for t in chunk:
+                        errors[t] = str(e)
+                    df = None
+                else:
+                    time.sleep(pause_s * (2 ** attempt))
+
+        if df is None:
+            continue
+
+        # If only one ticker, yfinance returns a different shape.
+        if isinstance(df.columns, pd.MultiIndex):
+            # MultiIndex columns: (field, ticker) or (ticker, field) depending on group_by
+            # With group_by="ticker", it's usually (ticker, field)
+            # We'll detect tickers by level 0.
+            tick_level = df.columns.get_level_values(0)
+            for t in chunk:
+                if t not in set(tick_level):
+                    invalid.add(t)
+                    continue
+                sub = df[t]  # fields like Open/High/Low/Close/Volume
+                if sub.dropna(how="all").empty:
+                    invalid.add(t)
+                else:
+                    valid.add(t)
+        else:
+            # Single ticker case: columns are fields directly
+            t = chunk[0]
+            if df.dropna(how="all").empty:
+                invalid.add(t)
+            else:
+                valid.add(t)
+
+        time.sleep(pause_s)
+
+    # Anything neither valid/invalid but not error: treat as invalid
+    remaining = set(tickers) - valid - invalid - set(errors.keys())
+    invalid |= remaining
+
+    return sorted(valid), sorted(invalid), errors
+
+
+# Example usage:
+# tickers = pd.read_csv("all_stocks.csv")["Ticker"].dropna().astype(str).tolist()
+# valid, invalid, errors = validate_tickers_yfinance(tickers)
+# print("valid:", len(valid), "invalid:", len(invalid), "errors:", len(errors))
+
+# 1 Failed download:
+# ['BRKB']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+
+# 1 Failed download:
+# ['HEIA']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+
+# 1 Failed download:
+# ['UHALB']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+
+# 1 Failed download:
+# ['BFB']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+
+# 4 Failed downloads:
+# ['MOGA', 'CWENA', 'BFA', 'LENB']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+
+# 1 Failed download:
+# ['GEFB']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+
+# 1 Failed download:
+# ['CRDA']: YFPricesMissingError('possibly delisted; no price data found  (period=5d)')
+
+# 1 Failed download:
+# ['THRD']: YFPricesMissingError('possibly delisted; no price data found  (period=5d) (Yahoo error = "No data found, symbol may be delisted")')
+# valid: 2906 invalid: 11 errors: 0
+
+# BRKB
+# HEIA****
+# UHALB
+# BFB
+# MOGA
+# CWENA
+# BFA
+# LENB
+# GEFB
+# CRDA
+# THRD****
