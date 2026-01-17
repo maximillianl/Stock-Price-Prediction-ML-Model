@@ -12,11 +12,15 @@ from test_subjects import *
 #--------------------------- try to add dashes before last character if ticker not found ---------------------------
 # ====================================================================================================
 def get_ticker_yf(ticker_symbol, period):
-    ticker_symbol = try_add_dash(ticker_symbol)
-    ticker = yf.Ticker(ticker_symbol)
-    hist = ticker.history(period=period)
-    hist_ohlcv = hist[['Open', 'High', 'Low', 'Close', 'Volume']]
-    return hist_ohlcv
+    original_ticker = ticker_symbol
+    data = yf.download(ticker_symbol, period=period, progress=False) 
+    if data.empty:
+        ticker_symbol = try_add_dash(ticker_symbol)
+        data = yf.download(ticker_symbol, period=period, progress=False)
+    if data.empty:
+        return (original_ticker, pd.DataFrame())  # return empty DataFrame if ticker not found, will be skipped when caching to db       
+    hist_ohlcv = data[['Open', 'High', 'Low', 'Close', 'Volume']]
+    return (ticker_symbol, hist_ohlcv)
 
 
 # tries adding dash before last letter of ticker (used when ticker not found)
@@ -45,28 +49,39 @@ def is_ticker_cached(ticker_symbol):
                 #add ticker to cached list
             #else skip
 
-# =========================== DONT CACHE IF TICKER ISNT FOUND IN YF (BRKB) ===========================
-# ====================================================================================================
+#=================== probably need to remove tickers no longer in the csv file from the db? ===================
 def cache_stock_to_db(csv_filename):
     init_db()
     cached = set(list_cached_tickers())
-    for ticker in pd.read_csv(csv_filename)['Ticker']:
-        print("Caching ticker:", ticker)
-        if not ticker in cached:
-            ticker_data = get_ticker_yf(ticker, "max")
-
-            # save ticker_data to db
-            with sqlite3.connect("stocks_cache.db") as conn:
-                cursor = conn.cursor()
-                for date, row in ticker_data.iterrows():
-                    cursor.execute('''
+    
+    #open db once
+    with sqlite3.connect("stocks_cache.db") as conn:
+        cursor = conn.cursor()
+        
+        
+        for ticker in pd.read_csv(csv_filename)['Ticker']:
+            print("Caching ticker:", ticker)
+            if not ticker in cached:
+                ticker_data = get_ticker_yf(ticker, "max")
+                ticker = ticker_data[0]
+                ticker_data = ticker_data[1]
+                ticker_data = ticker_data.reset_index()
+                if ticker_data.empty:
+                    print(f"Ticker {ticker} not found in yfinance. Skipping caching.")
+                    continue
+                
+                
+                else:
+                    
+                    rows = list(zip([ticker]*len(ticker_data), ticker_data['Date'].dt.strftime("%Y-%m-%d"), ticker_data['Open'], ticker_data['High'], ticker_data['Low'], ticker_data['Close'], ticker_data['Volume']))
+                    # save ticker_data to db
+                    cursor.executemany('''
                         INSERT OR IGNORE INTO stocks_table (ticker_symbol, date, open, high, low, close, volume)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (ticker, date.strftime('%Y-%m-%d'), row['Open'], row['High'], row['Low'], row['Close'], row['Volume']))
-                conn.commit()
-
-
-            cached.add(ticker)
+                    ''', rows)
+        
+        conn.commit()
+        cached.add(ticker)
         
 
 
@@ -102,12 +117,6 @@ def list_cached_tickers():
     
 
 
-# saves stock data of all ticker symbols from a csv file into db
-#--- loops through and get_ticker_yf then cache_to_db to each ticker symbol
-def save_list_to_db(csv_filename):
-    pass
-
-
 
 
 # get info for a stock from db
@@ -117,7 +126,7 @@ def get_stock_info(ticker_symbol):
 
 
 # get info for all stocks in db minus chose one
-# --- loops through and get_stock_info form db for each tiker except for ticker_symbol
+# --- loops through and get_stock_info form db for each ticker except for ticker_symbol
 def get_all_stocks_info_minus(ticker_symbol):
     pass
 
