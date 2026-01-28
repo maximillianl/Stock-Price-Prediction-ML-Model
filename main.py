@@ -18,6 +18,11 @@ def search_ticker_in_db(symbol: str):
     cached = set(s.upper() for s in list_cached_tickers())
     return symbol in cached
 
+def count_rows(db_path, table):
+    with sqlite3.connect(db_path) as conn:
+        cur = conn.cursor()
+        return cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+
 def main():
     # # snp500_stocks_api = get_snp500_stocks_api()
     # # print(snp500_stocks)
@@ -31,6 +36,9 @@ def main():
     # # # print(russell3000_stocks)
 
     normalized_snp500 = normalize_list(snp500_stocks)
+    remove_ticker_from_db("mgm")
+
+
     # print(normalized_snp500)
     # normalized_r1000 = normalize_list(russell1000_stocks)
     # normalized_r2000 = normalize_list(russell2000_stocks)
@@ -47,7 +55,26 @@ def main():
 
     # print_table("stocks_cache.db", "stocks_table")
     print(search_ticker_in_db("brkb"))
-    print(list_cached_tickers())
+    print(search_ticker_in_db("BRK-B"))
+    # print(list_cached_tickers())
+    # print(print_table("stocks_cache.db", "stocks_table"))
+    print(count_rows("stocks_cache.db", "stocks_table"))
+
+
+    date_range = ("2024-01-01", "2024-12-31")
+    print(get_stock_info("AAPL"))
+    # print(get_stock_info("BRK-B", date_range))
+    print(get_stock_info("MGM", date_range))
+
+    with sqlite3.connect("stocks_cache.db") as conn:
+        cur = conn.cursor()
+        print("Rows for MGM:", cur.execute(
+            "SELECT COUNT(*) FROM stocks_table WHERE ticker_symbol='MGM'"
+        ).fetchone()[0])
+
+        print("First 5 MGM rows:", cur.execute(
+            "SELECT ticker_symbol, date FROM stocks_table WHERE ticker_symbol='MGM' ORDER BY date LIMIT 5"
+        ).fetchall())
 
 
 if __name__ == "__main__":

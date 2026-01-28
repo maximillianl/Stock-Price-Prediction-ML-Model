@@ -1,6 +1,8 @@
 # get stocks to be given to data.py to fetch and cache data of listed stocks
 # adds stock names and ticker symbols into test_subjects.csv
 
+# future look into using yfinance to pull etf holdings directly instead of ishares csvs??
+
 import pandas as pd
 import numpy as np
 import requests
@@ -8,12 +10,14 @@ import json
 import os
 from dotenv import load_dotenv
 
+#============================= only used for api, api not used currently
+# load_dotenv() # load environment variables from .env file
 
-load_dotenv() # load environment variables from .env file
+# API_NINJAS_KEY = os.getenv("API_NINJAS_KEY")
+# if not API_NINJAS_KEY:
+#     raise RuntimeError("Missing API_NINJAS_KEY. Put it in a .env file.")
+#=============================
 
-API_NINJAS_KEY = os.getenv("API_NINJAS_KEY")
-if not API_NINJAS_KEY:
-    raise RuntimeError("Missing API_NINJAS_KEY. Put it in a .env file.")
 
 # gets list of s&p 500 stocks (~top 500 biggest)
 def get_snp500_stocks_api():

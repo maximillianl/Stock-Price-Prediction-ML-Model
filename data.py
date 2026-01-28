@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import sqlite3
+from datetime import date, timedelta
 
 from test_subjects import *
 
@@ -13,13 +14,14 @@ from test_subjects import *
 # ====================================================================================================
 def get_ticker_yf(ticker_symbol, period):
     original_ticker = ticker_symbol
-    data = yf.download(ticker_symbol, period=period, progress=False) 
+    data = yf.download(ticker_symbol, period=period, progress=False, auto_adjust=False) 
     if data.empty:
         ticker_symbol = try_add_dash(ticker_symbol)
-        data = yf.download(ticker_symbol, period=period, progress=False)
+        data = yf.download(ticker_symbol, period=period, progress=False, auto_adjust=False)
     if data.empty:
         return (original_ticker, pd.DataFrame())  # return empty DataFrame if ticker not found, will be skipped when caching to db       
-    hist_ohlcv = data[['Open', 'High', 'Low', 'Close', 'Volume']]
+    hist_ohlcv = data[['Open', 'High', 'Low', 'Close', 'Volume', "Adj Close"]]
+    print(hist_ohlcv)
     return (ticker_symbol, hist_ohlcv)
 
 
@@ -73,15 +75,16 @@ def cache_stock_to_db(csv_filename):
                 
                 else:
                     
-                    rows = list(zip([ticker]*len(ticker_data), ticker_data['Date'].dt.strftime("%Y-%m-%d"), ticker_data['Open'], ticker_data['High'], ticker_data['Low'], ticker_data['Close'], ticker_data['Volume']))
+                    rows = list(zip([ticker]*len(ticker_data), ticker_data['Date'].dt.strftime("%Y-%m-%d"), ticker_data['Open'], ticker_data['High'], ticker_data['Low'], ticker_data['Close'], ticker_data['Volume'], ticker_data['Adj Close']))
+
                     # save ticker_data to db
                     cursor.executemany('''
-                        INSERT OR IGNORE INTO stocks_table (ticker_symbol, date, open, high, low, close, volume)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        INSERT OR IGNORE INTO stocks_table (ticker_symbol, date, open, high, low, close, volume, adj_close)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ''', rows)
+            cached.add(ticker)
         
         conn.commit()
-        cached.add(ticker)
         
 
 
@@ -97,10 +100,38 @@ def init_db():
                 low REAL,
                 close REAL,
                 volume INTEGER,
+                adj_close REAL,
                 PRIMARY KEY (ticker_symbol, date)
             );
         ''')
         conn.commit()
+
+#=========================== check to see if the data in db is recent enough (withing last 7 days) ===========================
+# gets latest date for ticker symbol in db
+def latest_date_in_db(ticker_symbol, db_path="stocks_cache.db"):
+    ticker_symbol = ticker_symbol.strip().upper()
+    if not is_ticker_cached(ticker_symbol):
+        ticker_symbol = try_add_dash(ticker_symbol)
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT MAX(date) FROM stocks_table WHERE ticker_symbol = ?;
+        ''', (ticker_symbol,))
+        result = cursor.fetchone()
+        if result and result[0]:
+            return result[0]
+        else:
+            return None
+        
+
+# checks if date string is within x days from today
+def recent_enough(date_str, days=7):
+    if date_str is None:
+        return False
+    max_date = date.today() - timedelta(days=days)
+    date_obj = date.fromisoformat(date_str)
+    return date_obj >= max_date
+
 
 
 #lists cached ticker symbols in db
@@ -115,13 +146,50 @@ def list_cached_tickers():
     return tickers
 
     
+# removes ticker from db
+def remove_ticker_from_db(ticker_symbol):
+    ticker_symbol = ticker_symbol.strip().upper()
+    if not is_ticker_cached(ticker_symbol):
+        ticker_symbol = try_add_dash(ticker_symbol)
+    with sqlite3.connect("stocks_cache.db") as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            DELETE FROM stocks_table WHERE ticker_symbol = ?;
+        ''', (ticker_symbol,))
+        conn.commit()
 
 
 
 
 # get info for a stock from db
-def get_stock_info(ticker_symbol):
-    pass
+def get_stock_info(ticker_symbol, date_range=(None, None)):
+    ticker_symbol = ticker_symbol.strip().upper()
+    if is_ticker_cached(ticker_symbol) == False:
+        ticker_symbol = try_add_dash(ticker_symbol)
+    with sqlite3.connect("stocks_cache.db") as conn:
+        cursor = conn.cursor()
+        query = '''
+            SELECT date, open, high, low, close, volume, adj_close
+            FROM stocks_table
+            WHERE ticker_symbol = ?
+        '''
+        params = [ticker_symbol]
+
+        if date_range is not None:
+            start_date, end_date = date_range
+            if start_date is not None:
+                query += " AND date >= ?"
+                params.append(start_date)
+            if end_date is not None:
+                query += " AND date <= ?"
+                params.append(end_date)
+
+        query += " ORDER BY date ASC"
+
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+    df = pd.DataFrame(rows, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'])
+    return df
 
 
 
