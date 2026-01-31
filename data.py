@@ -1,4 +1,5 @@
 # get finance data and caching (first versoin checks for chached files, second version adds data starting from date in cached file if available)
+from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -19,7 +20,8 @@ def get_ticker_yf(ticker_symbol, period):
         ticker_symbol = try_add_dash(ticker_symbol)
         data = yf.download(ticker_symbol, period=period, progress=False, auto_adjust=False)
     if data.empty:
-        return (original_ticker, pd.DataFrame())  # return empty DataFrame if ticker not found, will be skipped when caching to db       
+        return (original_ticker, pd.DataFrame())  # return empty DataFrame if ticker not found, will be skipped when caching to db   
+    data.columns = data.columns.get_level_values(0)  # flatten multi-index columns
     hist_ohlcv = data[['Open', 'High', 'Low', 'Close', 'Volume', "Adj Close"]]
     print(hist_ohlcv)
     return (ticker_symbol, hist_ohlcv)
@@ -65,7 +67,10 @@ def cache_stock_to_db(csv_filename):
             print("Caching ticker:", ticker)
             if not ticker in cached:
                 ticker_data = get_ticker_yf(ticker, "max")
+                print("Ticker data:" , ticker_data)
+                print("ticker data column names", ticker_data[1].columns)
                 ticker = ticker_data[0]
+                print("Using ticker symbol:", ticker)
                 ticker_data = ticker_data[1]
                 ticker_data = ticker_data.reset_index()
                 if ticker_data.empty:
@@ -106,31 +111,9 @@ def init_db():
         ''')
         conn.commit()
 
-#=========================== check to see if the data in db is recent enough (withing last 7 days) ===========================
-# gets latest date for ticker symbol in db
-def latest_date_in_db(ticker_symbol, db_path="stocks_cache.db"):
-    ticker_symbol = ticker_symbol.strip().upper()
-    if not is_ticker_cached(ticker_symbol):
-        ticker_symbol = try_add_dash(ticker_symbol)
-    with sqlite3.connect(db_path) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT MAX(date) FROM stocks_table WHERE ticker_symbol = ?;
-        ''', (ticker_symbol,))
-        result = cursor.fetchone()
-        if result and result[0]:
-            return result[0]
-        else:
-            return None
-        
 
-# checks if date string is within x days from today
-def recent_enough(date_str, days=7):
-    if date_str is None:
-        return False
-    max_date = date.today() - timedelta(days=days)
-    date_obj = date.fromisoformat(date_str)
-    return date_obj >= max_date
+
+
 
 
 
@@ -192,11 +175,29 @@ def get_stock_info(ticker_symbol, date_range=(None, None)):
     return df
 
 
+# graphs stock info from db, data_type = 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'
+def graph_stock_info(ticker_symbol, date_range=(None, None), data_type='Close'):
+    ticker_symbol = ticker_symbol.strip().upper()
+    if is_ticker_cached(ticker_symbol) == False:
+        ticker_symbol = try_add_dash(ticker_symbol)
+    stock_data = get_stock_info(ticker_symbol, date_range)
+    if stock_data.empty:
+        print(f"No data found for ticker {ticker_symbol}.")
+        return
+    stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+    stock_data.set_index('Date', inplace=True)
+    stock_data[data_type].plot(title=f"{ticker_symbol} Stock Prices", ylabel="Price", xlabel="Date")
+    plt.show()
+
 
 # get info for all stocks in db minus chose one
 # --- loops through and get_stock_info form db for each ticker except for ticker_symbol
 def get_all_stocks_info_minus(ticker_symbol):
-    pass
+    for all_ticker in list_cached_tickers():
+        if all_ticker != ticker_symbol:
+            data = get_stock_info(all_ticker)
+            
+    return 
 
 
 # window of data from db for ticker symbol
@@ -214,4 +215,33 @@ def get_window(ticker_symbol, start_date, end_date):
 # # updates new dates data into db for ticker symbol
 # def update_new_dates_to_db(ticker_symbol, start_date, end_date):
 #     pass
+
+
+
+
+#=========================== check to see if the data in db is recent enough (withing last 7 days) ===========================
+# gets latest date for ticker symbol in db
+def latest_date_in_db(ticker_symbol, db_path="stocks_cache.db"):
+    ticker_symbol = ticker_symbol.strip().upper()
+    if not is_ticker_cached(ticker_symbol):
+        ticker_symbol = try_add_dash(ticker_symbol)
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT MAX(date) FROM stocks_table WHERE ticker_symbol = ?;
+        ''', (ticker_symbol,))
+        result = cursor.fetchone()
+        if result and result[0]:
+            return result[0]
+        else:
+            return None
+        
+
+# checks if date string is within x days from today
+def recent_enough(date_str, days=7):
+    if date_str is None:
+        return False
+    max_date = date.today() - timedelta(days=days)
+    date_obj = date.fromisoformat(date_str)
+    return date_obj >= max_date
 # ------------------------------------

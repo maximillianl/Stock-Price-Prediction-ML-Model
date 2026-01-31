@@ -36,7 +36,6 @@ def main():
     # # # print(russell3000_stocks)
 
     normalized_snp500 = normalize_list(snp500_stocks)
-    remove_ticker_from_db("mgm")
 
 
     # print(normalized_snp500)
@@ -51,30 +50,41 @@ def main():
 
     #when going through stocks, if ticker not found try adding dash before last letter of ticker symbol
 
+    # remove_ticker_from_db("brkb")
     cache_stock_to_db("snp500_stocks.csv")
 
+
+
+
+
     # print_table("stocks_cache.db", "stocks_table")
-    print(search_ticker_in_db("brkb"))
-    print(search_ticker_in_db("BRK-B"))
+    # print(search_ticker_in_db("brkb"))
+    # print(search_ticker_in_db("BRK-B"))
     # print(list_cached_tickers())
     # print(print_table("stocks_cache.db", "stocks_table"))
-    print(count_rows("stocks_cache.db", "stocks_table"))
+    # print(count_rows("stocks_cache.db", "stocks_table"))
 
 
-    date_range = ("2024-01-01", "2024-12-31")
-    print(get_stock_info("AAPL"))
+    date_range = ("2025-01-01", "2025-12-31")
+    # print(get_stock_info("AAPL"))
     # print(get_stock_info("BRK-B", date_range))
-    print(get_stock_info("MGM", date_range))
+    print(get_stock_info("brkb", date_range))
 
-    with sqlite3.connect("stocks_cache.db") as conn:
-        cur = conn.cursor()
-        print("Rows for MGM:", cur.execute(
-            "SELECT COUNT(*) FROM stocks_table WHERE ticker_symbol='MGM'"
-        ).fetchone()[0])
 
-        print("First 5 MGM rows:", cur.execute(
-            "SELECT ticker_symbol, date FROM stocks_table WHERE ticker_symbol='MGM' ORDER BY date LIMIT 5"
-        ).fetchall())
+    # graph_stock_info("mgm", date_range, "Volume")
+
+
+
+
+    # with sqlite3.connect("stocks_cache.db") as conn:
+    #     cur = conn.cursor()
+    #     print("Rows for MGM:", cur.execute(6
+    #         "SELECT COUNT(*) FROM stocks_table WHERE ticker_symbol='MGM'"
+    #     ).fetchone()[0])
+
+    #     print("First 5 MGM rows:", cur.execute(
+    #         "SELECT ticker_symbol, date FROM stocks_table WHERE ticker_symbol='MGM' ORDER BY date LIMIT 5"
+    #     ).fetchall())
 
 
 if __name__ == "__main__":
