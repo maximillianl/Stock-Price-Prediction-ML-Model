@@ -196,7 +196,6 @@ def get_all_stocks_info_minus(ticker_symbol):
     for all_ticker in list_cached_tickers():
         if all_ticker != ticker_symbol:
             data = get_stock_info(all_ticker)
-            
     return 
 
 

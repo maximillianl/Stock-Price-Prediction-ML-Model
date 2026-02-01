@@ -1,6 +1,6 @@
 from test_subjects import *
 from data import *
-
+from features import *
 
 import sqlite3
 
@@ -86,6 +86,8 @@ def main():
     #         "SELECT ticker_symbol, date FROM stocks_table WHERE ticker_symbol='MGM' ORDER BY date LIMIT 5"
     #     ).fetchall())
 
+    print(load_stock_from_db("AAPL"))
+    
 
 if __name__ == "__main__":
     main()
