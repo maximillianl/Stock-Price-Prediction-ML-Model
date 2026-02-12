@@ -87,6 +87,8 @@ def main():
     #     ).fetchall())
 
     print(load_stock_from_db("AAPL"))
+
+    print(db_to_pandas("stocks_cache.db"))
     
 
 if __name__ == "__main__":

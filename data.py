@@ -175,6 +175,27 @@ def get_stock_info(ticker_symbol, date_range=(None, None)):
     return df
 
 
+# gets data from db and puts it into a df
+def db_to_df(db_file_name):
+
+    with sqlite3.connect(db_file_name) as conn:
+        cursor = conn.cursor()
+        query = '''
+            SELECT *
+            FROM stocks_table
+            ORDER BY ticker_symbol, date ASC
+           
+        '''
+
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+
+
+    df = pd.DataFrame(rows, columns=['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'])
+    return df
+
+
 # graphs stock info from db, data_type = 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'
 def graph_stock_info(ticker_symbol, date_range=(None, None), data_type='Close'):
     ticker_symbol = ticker_symbol.strip().upper()

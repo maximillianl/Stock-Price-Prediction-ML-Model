@@ -5,9 +5,22 @@ import numpy as np
 import sqlite3
 
 
-# loads single stock data from db to dataframe
-def load_stock_from_db(ticker_symbol):
-    pass
+# gets data from db and puts it into a df
+def db_to_df(db_file_name):
+
+    with sqlite3.connect(db_file_name) as conn:
+        cursor = conn.cursor()
+        query = '''
+            SELECT *
+            FROM stocks_table
+            ORDER BY ticker_symbol, date ASC
+           
+        '''
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+    df = pd.DataFrame(rows, columns=['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'])
+    return df
 
 
 
