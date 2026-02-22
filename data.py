@@ -15,14 +15,14 @@ from test_subjects import *
 # ====================================================================================================
 def get_ticker_yf(ticker_symbol, period):
     original_ticker = ticker_symbol
-    data = yf.download(ticker_symbol, period=period, progress=False, auto_adjust=False) 
+    data = yf.download(ticker_symbol, period=period, progress=False, auto_adjust=True) 
     if data.empty:
         ticker_symbol = try_add_dash(ticker_symbol)
-        data = yf.download(ticker_symbol, period=period, progress=False, auto_adjust=False)
+        data = yf.download(ticker_symbol, period=period, progress=False, auto_adjust=True)
     if data.empty:
         return (original_ticker, pd.DataFrame())  # return empty DataFrame if ticker not found, will be skipped when caching to db   
     data.columns = data.columns.get_level_values(0)  # flatten multi-index columns
-    hist_ohlcv = data[['Open', 'High', 'Low', 'Close', 'Volume', "Adj Close"]]
+    hist_ohlcv = data[['Open', 'High', 'Low', 'Close', 'Volume']]
     print(hist_ohlcv)
     return (ticker_symbol, hist_ohlcv)
 
@@ -80,12 +80,12 @@ def cache_stock_to_db(csv_filename):
                 
                 else:
                     
-                    rows = list(zip([ticker]*len(ticker_data), ticker_data['Date'].dt.strftime("%Y-%m-%d"), ticker_data['Open'], ticker_data['High'], ticker_data['Low'], ticker_data['Close'], ticker_data['Volume'], ticker_data['Adj Close']))
+                    rows = list(zip([ticker]*len(ticker_data), ticker_data['Date'].dt.strftime("%Y-%m-%d"), ticker_data['Open'], ticker_data['High'], ticker_data['Low'], ticker_data['Close'], ticker_data['Volume']))
 
                     # save ticker_data to db
                     cursor.executemany('''
-                        INSERT OR IGNORE INTO stocks_table (ticker_symbol, date, open, high, low, close, volume, adj_close)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        INSERT OR IGNORE INTO stocks_table (ticker_symbol, date, open, high, low, close, volume)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', rows)
             cached.add(ticker)
         
@@ -105,7 +105,6 @@ def init_db():
                 low REAL,
                 close REAL,
                 volume INTEGER,
-                adj_close REAL,
                 PRIMARY KEY (ticker_symbol, date)
             );
         ''')
@@ -152,7 +151,7 @@ def get_stock_info(ticker_symbol, date_range=(None, None)):
     with sqlite3.connect("stocks_cache.db") as conn:
         cursor = conn.cursor()
         query = '''
-            SELECT date, open, high, low, close, volume, adj_close
+            SELECT date, open, high, low, close, volume
             FROM stocks_table
             WHERE ticker_symbol = ?
         '''
@@ -171,7 +170,7 @@ def get_stock_info(ticker_symbol, date_range=(None, None)):
 
         cursor.execute(query, params)
         rows = cursor.fetchall()
-    df = pd.DataFrame(rows, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'])
+    df = pd.DataFrame(rows, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
     return df
 
 
@@ -192,11 +191,11 @@ def db_to_df(db_file_name):
 
 
 
-    df = pd.DataFrame(rows, columns=['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'])
+    df = pd.DataFrame(rows, columns=['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
     return df
 
 
-# graphs stock info from db, data_type = 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'
+# graphs stock info from db, data_type = 'Open', 'High', 'Low', 'Close', 'Volume'
 def graph_stock_info(ticker_symbol, date_range=(None, None), data_type='Close'):
     ticker_symbol = ticker_symbol.strip().upper()
     if is_ticker_cached(ticker_symbol) == False:

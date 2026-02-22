@@ -68,7 +68,7 @@ def main():
     date_range = ("2025-01-01", "2025-12-31")
     # print(get_stock_info("AAPL"))
     # print(get_stock_info("BRK-B", date_range))
-    print(get_stock_info("brkb", date_range))
+    # print(get_stock_info("brkb", date_range))
 
 
     # graph_stock_info("mgm", date_range, "Volume")
@@ -86,9 +86,16 @@ def main():
     #         "SELECT ticker_symbol, date FROM stocks_table WHERE ticker_symbol='MGM' ORDER BY date LIMIT 5"
     #     ).fetchall())
 
-    print(load_stock_from_db("AAPL"))
+    # print(load_stock_from_db("AAPL"))
 
-    print(db_to_pandas("stocks_cache.db"))
+    df = db_to_df("stocks_cache.db")
+    # print(df)
+    # df = log_returns(df)
+    # df = add_daily_candles(df)
+    # df = log_rvol(df)
+    
+    print(df)
+    create_df(df)
     
 
 if __name__ == "__main__":

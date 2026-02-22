@@ -19,62 +19,89 @@ def db_to_df(db_file_name):
         cursor.execute(query)
         rows = cursor.fetchall()
 
-    df = pd.DataFrame(rows, columns=['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close'])
+    df = pd.DataFrame(rows, columns=['Ticker', 'Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
     return df
 
 
 
-# gets log returns of stock prices (log of daily returns)
+#saves parquet of df with log returns, upper wick, lower wick, volatility, rvol, ema deviation, donchian channel percentile and rsi from ohlcv
+def create_df(df):
+    df = log_returns(df)
+    # df = add_daily_candles(df)
+    # df = volatility(df)
+    df = log_rvol(df)
+    # df = ema_deviation(df, window=20)
+    # df = donchian_channel_percentile(df, window=20)
+    # df = rsi(df)
+    df.to_parquet("snp500_features.parquet", index=False)
+    
+    
+
+
+
+# converts ohlcv to log returns of stock prices (log of daily returns)
 
 # get stock is a dataframe with ohlcv data from db
-# use data from 'Close' and 'Open' columns
-def log_returns(stock, window=20):
+# use data from the current day and following day 'Close' column
+
+#stitch log_return for each row of df
+# daily return 
+def log_returns(df):
+    df['log_return'] = df.groupby('Ticker')['Close'].transform(lambda x: np.log(x / x.shift(1)))
+    return df
+
+
+
+# converts ohlcv to upper and lower wick (log distance from max of open/close to high)
+# body tells intraday return
+def add_daily_candles(df):
+    df['log_body'] = np.log(df['Close'] / df['Open'])
+    
+    top_of_body = df[['Open', 'Close']].max(axis=1)
+    bottom_of_body = df[['Open', 'Close']].min(axis=1)
+    
+    df['upper_wick'] = np.log(df['High'] / top_of_body)
+    df['lower_wick'] = np.log(bottom_of_body / df['Low'])
+    
+    return df
+
+
+
+
+
+
+# converts ohlcv to atr% (Average True Range Percentile) + percentile rank (volatility)
+def volatility(df, window=20):
     pass
-    # log ( close / open )
-
-
-
-#gets upper wick (log distance from max of open/close to high)
-def upper_wick(stock, window=20):
-    pass
-    # log ( high / max(open, close) )
+    
 
 
 
 
+# converts ohlcv to log (volume / 20-day avg volume). (relative volume rvol)
+def log_rvol(df, window=20):
+    vol = df['Volume'].replace(0, np.nan)
+    sma_vol = vol.groupby(df['Ticker']).transform(lambda x: x.rolling(window, min_periods=window).mean())
+    df['log_rvol'] = np.log(vol/sma_vol)
+    return df
 
-#gets lower wick (log distance from min of open/close to low)
-def lower_wick(stock, window=20):
-    pass
-    # log ( min(open, close) / low )
 
 
-
-#gets art% + percentile rank (volatility)
-def volatility(stock, window=20):
+# converts ohlcv to % deviation from EMA (trend strength)
+def ema_deviation(df, window=20):
     pass
 
 
 
-
-#gets volume / 20-day avg volume (relative volume rvol)
-def rvol(stock, window=20):
+# converts ohlcv to donchian channel percentile ()
+def donchian_channel_percentile(df, window=20):
     pass
 
 
 
-# gets % deviation from EMA (trend strength)
-def ema_deviation(stock, window=20):
+# converts ohlcv to rsi (mean reversion momentum)
+def rsi(df, window=20):
     pass
 
 
-
-#gets donchian channel percentile ()
-def donchian_channel_percentile(stock, window=20):
-    pass
-
-
-
-#gets rsi (mean reversion momentum)
-def rsi(stock, window=20):
-    pass
+# relative return vs market (s&p)
