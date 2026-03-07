@@ -46,6 +46,8 @@ def mat_dist(a, b):
 #   return D[N, M]
 # end procedure
 
+# w is the max number of days the series can be stretched during the search
+# x and y are two windows being compared (chosen stock v other stock window)
 def DTW(x, y, w = 5):
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
@@ -67,7 +69,7 @@ def DTW(x, y, w = 5):
     return D[N, M]
 
 
-# iDTW distance
+# iDTW distance - not used since using log prices and volume
 #
 # 1: procedure iDTW(x, y)                                    -> Scaling Data
 # 2:   Var Ix, Iy
@@ -81,6 +83,7 @@ def DTW(x, y, w = 5):
 # 10:  return DTW(Ix, Iy)                                   -> Apply DTW
 # 11: end procedure
 
+# starts index at 1 for normalization
 def iDTW(x, y, w=5, eps=1e-12):
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
@@ -115,7 +118,8 @@ def iDTW(x, y, w=5, eps=1e-12):
 #   return m1, ..., mk
 # end procedure
 
-def iDTW_BASED_K_CLUSTERING(X, k, w=5, max_iter=50, seed=42):
+#k mediod clustering of windows
+def iDTW_BASED_K_CLUSTERING(X, k, w=5, max_iter=50, seed=67):
     # X = {x1, ..., xN} (python list)
     N = len(X)
     rng = np.random.default_rng(seed)
@@ -141,7 +145,7 @@ def iDTW_BASED_K_CLUSTERING(X, k, w=5, max_iter=50, seed=42):
             best_i = 0
             best_d = np.inf
             for i in range(k):
-                di = mat_dist(xj, m[i])
+                di = iDTW(X[xj], X[m[i]])
                 if di < best_d:
                     best_d = di
                     best_i = i
@@ -165,7 +169,7 @@ def iDTW_BASED_K_CLUSTERING(X, k, w=5, max_iter=50, seed=42):
             for xi in cj:
                 cost = 0.0
                 for xl in cj:
-                    cost += mat_dist(xi, xl)
+                    cost += iDTW(X[xi], X[xl])
                 if cost < best_cost:
                     best_cost = cost
                     best_xi = xi
@@ -180,5 +184,9 @@ def iDTW_BASED_K_CLUSTERING(X, k, w=5, max_iter=50, seed=42):
     return m, c
 
 
-def compare_iDTW(df, features = []):
+# stock = ticker of stock for prediction
+# test_stocks = df of all stocks
+# w = window
+# features_compared = features compared from df
+def compare_iDTW(stock, test_stocks, w, features_compared = []):
     pass
