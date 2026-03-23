@@ -108,8 +108,13 @@ def main():
     create_df(df)
 
     # a = compare_DTW("GOOG", df, w = 20, features_compared = ["log_return", "log_rvol"])
-    a = backtest_compare_DTW("GOOG", df, w = 20, features_compared = ["log_return", "log_rvol"])
+    a = backtest_compare_DTW("META", df, w = 30, features_compared = ["log_return"])
     print(a)
+    a = create_backtest_df(a)
+    a = add_future_price_movement(a, df)
+    backtest = add_future_price_movement_comparison(a)
+    print(backtest)
+    
 
 if __name__ == "__main__":
     main()

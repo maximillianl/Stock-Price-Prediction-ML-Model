@@ -219,7 +219,7 @@ def compare_DTW(stock, test_stocks, w = 20, features_compared = FEATURES_DEFAULT
     target_z = z_score(target_values)
 
     results = []
-    window_step = w//4
+    window_step = w//2
 
     for ticker in test_stocks['Ticker'].unique():
         # df of just current ticker
