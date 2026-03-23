@@ -2,6 +2,8 @@ from test_subjects import *
 from data import *
 from features import *
 from IDTW import *
+from backtest import *
+
 
 import sqlite3
 
@@ -28,7 +30,8 @@ def count_rows(db_path, table):
 def main():
     # # snp500_stocks_api = get_snp500_stocks_api()
     # # print(snp500_stocks)
-    snp500_stocks = get_snp500_stocks()
+    # snp500_stocks = get_snp500_stocks()
+
     # # print(snp500_stocks)
     # russell1000_stocks = get_russell1000_stocks()
     # # # print(russell1000_stocks)
@@ -36,8 +39,11 @@ def main():
     # # # print(russell2000_stocks)
     # russell3000_stocks = get_russell3000_stocks()
     # # # print(russell3000_stocks)
+    
+    snp100_stocks = get_snp100_stocks()
 
-    normalized_snp500 = normalize_list(snp500_stocks)
+    # normalized_snp500 = normalize_list(snp500_stocks)
+    normalized_snp100 = normalize_list(snp100_stocks)
 
 
     # print(normalized_snp500)
@@ -48,12 +54,14 @@ def main():
     # list_to_csv(merged_list, "all_stocks.csv")
 
     # list_to_csv(normalized_r3000, "russell3000_stocks.csv")
-    list_to_csv(normalized_snp500, "snp500_stocks.csv")
+    list_to_csv(normalized_snp100, "snp100_stocks.csv")
+    # list_to_csv(normalized_snp500, "snp500_stocks.csv")
 
     #when going through stocks, if ticker not found try adding dash before last letter of ticker symbol
 
     # remove_ticker_from_db("brkb")
-    cache_stock_to_db("snp500_stocks.csv")
+    # cache_stock_to_db("snp500_stocks.csv")
+    cache_stock_to_db("snp100_stocks.csv")
 
 
 
@@ -99,7 +107,8 @@ def main():
     print(df)
     create_df(df)
 
-    a = compare_DTW("GOOG", df, w = 20, features_compared = ["log_return", "log_rvol"])
+    # a = compare_DTW("GOOG", df, w = 20, features_compared = ["log_return", "log_rvol"])
+    a = backtest_compare_DTW("GOOG", df, w = 20, features_compared = ["log_return", "log_rvol"])
     print(a)
 
 if __name__ == "__main__":

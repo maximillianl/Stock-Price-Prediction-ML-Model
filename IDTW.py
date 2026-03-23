@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import sqlite3
 from scipy.stats import zscore
+from numba import njit
 
 FEATURES_DEFAULT = ['log_return', 'log_rvol']
 
@@ -21,7 +22,7 @@ def get_ticker_df(df, ticker):
 def z_score(W):
     return zscore(W, axis=0, ddof=0)
 
-
+@njit
 def mat_dist(a, b):
     return np.sum(np.abs(a-b))
 
@@ -48,25 +49,37 @@ def mat_dist(a, b):
 
 # w is the max number of days the series can be stretched during the search
 # x and y are two windows being compared (chosen stock v other stock window)
+@njit
 def DTW(x, y, w = 5):
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-
-    N = len(x)
-    M = len(y)
+    N = x.shape[0]
+    M = y.shape[0]
     
-    D = np.full((N + 1, M + 1), np.inf, dtype=float)
+    D = np.full((N + 1, M + 1), 1e18)
     D[1, 1] = 0.0
     
     for i in range(2, N + 1):
-        for j in range(2, M + 1):
-            D[i, j] = np.inf
+        for j in range(max(1, i - w), min(M, i + w) + 1):
+            D[i, j] = np.sum(np.abs(x[i - 2] - y[j - 2])) + min(D[i, j - 1], D[i - 1, j], D[i - 1, j - 1])
     
-    for i in range (2, N+1):
-        for j in range (max(1, i - w), min(M, i + w)+1):
-            D[i, j] = mat_dist(x[i - 2], y[j - 2]) + min(D[i, j - 1], D[i - 1, j], D[i - 1, j - 1])
-
     return D[N, M]
+    # x = np.asarray(x, dtype=float)
+    # y = np.asarray(y, dtype=float)
+
+    # N = len(x)
+    # M = len(y)
+    
+    # D = np.full((N + 1, M + 1), np.inf, dtype=float)
+    # D[1, 1] = 0.0
+    
+    # for i in range(2, N + 1):
+    #     for j in range(2, M + 1):
+    #         D[i, j] = np.inf
+    
+    # for i in range (2, N+1):
+    #     for j in range (max(1, i - w), min(M, i + w)+1):
+    #         D[i, j] = mat_dist(x[i - 2], y[j - 2]) + min(D[i, j - 1], D[i - 1, j], D[i - 1, j - 1])
+
+    # return D[N, M]
 
 
 # iDTW distance - not used since already using log prices and volume (normalized)
@@ -196,10 +209,12 @@ def compare_DTW(stock, test_stocks, w = 20, features_compared = FEATURES_DEFAULT
     small_df = test_stocks[test_stocks['Ticker'].isin(test_tickers)]
 
     target_stock = test_stocks[test_stocks['Ticker'] == stock].tail(w)
-    test_stocks = test_stocks.drop(target_stock.index)
+    
+    # temp to test shortlist
+    # test_stocks = test_stocks.drop(target_stock.index)
+    test_stocks = small_df.drop(target_stock.index)
 
     target_values = target_stock[features_compared].values
-    
 
     target_z = z_score(target_values)
 
@@ -211,14 +226,14 @@ def compare_DTW(stock, test_stocks, w = 20, features_compared = FEATURES_DEFAULT
         ticker_df = test_stocks[test_stocks['Ticker'] == ticker]
         print(ticker, "======================================================================")
         
-        # slides windows through ticker
-        for start in range(len(ticker_df) - w, window_step):
+        # slides windows through ticker at each window_step
+        for start in range(0, len(ticker_df) - w, window_step):
             comparitor = ticker_df.iloc[start:start + w]
             comparitor_values = comparitor[features_compared].values
             if np.isnan(comparitor_values).any():
                 continue
             comparitor_z = z_score(comparitor_values)
-            DTW_score = DTW(target_z, comparitor_z, np.floor(w // 4))
+            DTW_score = DTW(target_z, comparitor_z, np.w // 4)
             results.append({'Ticker': ticker, 'start_date': ticker_df['Date'].iloc[start], 'end_date': ticker_df['Date'].iloc[start + w - 1], 'DTW_score': DTW_score})
             print(DTW_score)
 
@@ -228,11 +243,3 @@ def compare_DTW(stock, test_stocks, w = 20, features_compared = FEATURES_DEFAULT
 
 
         
-        
-        
-        
-        
-
-    # comparison = DTW(target_stock, test_stocks, np.floor(w / 4))
-
-    return target_stock, test_stocks

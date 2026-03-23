@@ -44,6 +44,12 @@ def read_ishares_csv(url):
 
 # gets index lists from ishares etf holdings csvs
 
+# OEF - s%p 100
+def get_snp100_stocks():
+    df = read_ishares_csv("https://www.ishares.com/us/products/239723/ishares-sp-100-etf/1467271812596.ajax?fileType=csv&fileName=OEF_holdings&dataType=fund")
+    return df
+
+
 # IVV - s&p 500
 def get_snp500_stocks():
     df = read_ishares_csv("https://www.ishares.com/us/products/239726/ishares-core-sp-500-etf/1467271812596.ajax?fileType=csv&fileName=IVV_holdings&dataType=fund")
