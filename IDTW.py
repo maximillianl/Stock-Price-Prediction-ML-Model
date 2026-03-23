@@ -69,7 +69,7 @@ def DTW(x, y, w = 5):
     return D[N, M]
 
 
-# iDTW distance - not used since using log prices and volume
+# iDTW distance - not used since already using log prices and volume (normalized)
 #
 # 1: procedure iDTW(x, y)                                    -> Scaling Data
 # 2:   Var Ix, Iy
@@ -187,6 +187,52 @@ def iDTW_BASED_K_CLUSTERING(X, k, w=5, max_iter=50, seed=67):
 # stock = ticker of stock for prediction
 # test_stocks = df of all stocks
 # w = window
-# features_compared = features compared from df
-def compare_iDTW(stock, test_stocks, w, features_compared = []):
-    pass
+# features_compared = features compared from df (log_return, log_rvol, any feature column name)
+# top_n gives top n closest matches
+def compare_DTW(stock, test_stocks, w = 20, features_compared = FEATURES_DEFAULT, top_n = 10):
+    
+
+    test_tickers = ['GOOG', 'AAPL', 'MSFT', 'AMZN', 'META']
+    small_df = test_stocks[test_stocks['Ticker'].isin(test_tickers)]
+
+    target_stock = test_stocks[test_stocks['Ticker'] == stock].tail(w)
+    test_stocks = test_stocks.drop(target_stock.index)
+
+    target_values = target_stock[features_compared].values
+    
+
+    target_z = z_score(target_values)
+
+    results = []
+    window_step = w//4
+
+    for ticker in test_stocks['Ticker'].unique():
+        # df of just current ticker
+        ticker_df = test_stocks[test_stocks['Ticker'] == ticker]
+        print(ticker, "======================================================================")
+        
+        # slides windows through ticker
+        for start in range(len(ticker_df) - w, window_step):
+            comparitor = ticker_df.iloc[start:start + w]
+            comparitor_values = comparitor[features_compared].values
+            if np.isnan(comparitor_values).any():
+                continue
+            comparitor_z = z_score(comparitor_values)
+            DTW_score = DTW(target_z, comparitor_z, np.floor(w // 4))
+            results.append({'Ticker': ticker, 'start_date': ticker_df['Date'].iloc[start], 'end_date': ticker_df['Date'].iloc[start + w - 1], 'DTW_score': DTW_score})
+            print(DTW_score)
+
+
+    results.sort(key=lambda x: x['DTW_score'])
+    return results[:top_n]
+
+
+        
+        
+        
+        
+        
+
+    # comparison = DTW(target_stock, test_stocks, np.floor(w / 4))
+
+    return target_stock, test_stocks

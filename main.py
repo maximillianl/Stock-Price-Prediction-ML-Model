@@ -1,6 +1,7 @@
 from test_subjects import *
 from data import *
 from features import *
+from IDTW import *
 
 import sqlite3
 
@@ -22,6 +23,7 @@ def count_rows(db_path, table):
     with sqlite3.connect(db_path) as conn:
         cur = conn.cursor()
         return cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    
 
 def main():
     # # snp500_stocks_api = get_snp500_stocks_api()
@@ -96,7 +98,9 @@ def main():
     
     print(df)
     create_df(df)
-    
+
+    a = compare_DTW("GOOG", df, w = 20, features_compared = ["log_return", "log_rvol"])
+    print(a)
 
 if __name__ == "__main__":
     main()
